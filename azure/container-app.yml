@@ -1,0 +1,38 @@
+location: eastus
+resourceGroup: visual-finetune-lab-rg
+
+containerApp:
+  name: vfl-api
+  resourceGroup: visual-finetune-lab-rg
+  environmentName: vfl-env
+  image: your_acr.azurecr.io/visual-finetune-lab:latest
+  targetPort: 8000
+  ingress:
+    external: true
+    allowInsecure: false
+  scale:
+    minReplicas: 0     # scale to zero when idle
+    maxReplicas: 3
+    rules:
+      - name: http-rule
+        http:
+          metadata:
+            concurrentRequests: "10"
+  env:
+    - name: OPENAI_API_KEY
+      secretRef: openai-api-key
+    - name: AZURE_STORAGE_ACCOUNT
+      secretRef: azure-storage-account
+    - name: AZURE_STORAGE_KEY
+      secretRef: azure-storage-key
+    - name: MLFLOW_TRACKING_URI
+      value: "databricks"
+    - name: MODEL_CHECKPOINT_PATH
+      value: "/checkpoints/best"
+  secrets:
+    - name: openai-api-key
+      value: ""    # set via: az containerapp secret set
+    - name: azure-storage-account
+      value: ""
+    - name: azure-storage-key
+      value: ""

@@ -1,0 +1,17 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+dist/
+.eggs/
+*.egg-info/
+checkpoints/
+data/raw/
+data/processed/
+data/datasets/
+mlruns/
+mlflow.db
+*.pt
+*.bin
+*.safetensors
+.DS_Store

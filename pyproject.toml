@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "visual-finetune-lab"
+version = "0.1.0"
+description = "End-to-end pipeline: image preprocessing → synthetic dataset generation → LoRA fine-tuning → evaluation → Azure serving"
+requires-python = ">=3.11"
+dependencies = [
+    # Image processing
+    "opencv-python-headless>=4.9",
+    "Pillow>=10.3",
+
+    # LLM / GenAI
+    "openai>=1.30",
+    "transformers>=4.41",
+    "peft>=0.11",
+    "bitsandbytes>=0.43",        # QLoRA quantization
+    "accelerate>=0.30",
+    "torch>=2.3",
+    "datasets>=2.19",
+    "torchvision>=0.18",
+
+    # Tracking
+    "mlflow>=2.13",
+    "azure-storage-blob>=12.20",  # checkpoints + images
+
+    # Evaluation
+    "nltk>=3.8",                  # BLEU score
+    "rouge-score>=0.1.2",
+
+    # Serving
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
+    "pydantic>=2.7",
+    "python-multipart>=0.0.9",    # image upload
+
+    # Utilities
+    "python-dotenv>=1.0",
+    "structlog>=24.1",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",                # FastAPI test client
+    "ruff>=0.4",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/visual_finetune_lab"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
