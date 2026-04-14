@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import importlib.util
 import os
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -86,6 +88,24 @@ class LoRATrainer:
 
     # ------------------------------------------------------------------ #
 
+    @staticmethod
+    @contextmanager
+    def _hide_flash_attn():
+        """Temporarily make flash_attn invisible to importlib so custom model
+        code (e.g. modeling_phi3_v.py) cannot enable FlashAttention2."""
+        _orig = importlib.util.find_spec
+
+        def _patched(name, *args, **kwargs):
+            if name == "flash_attn":
+                return None
+            return _orig(name, *args, **kwargs)
+
+        importlib.util.find_spec = _patched
+        try:
+            yield
+        finally:
+            importlib.util.find_spec = _orig
+
     def _load_model(self):
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=self.config.load_in_4bit,
@@ -97,23 +117,23 @@ class LoRATrainer:
             self.config.base_model_id,
             trust_remote_code=True,
         )
-        # Explicitly patch the model config before init so that models with
-        # _attn_implementation="flash_attention_2" in their config.json
-        # (e.g. Phi-3.5-vision) don't require the flash_attn package.
         model_config = AutoConfig.from_pretrained(
             self.config.base_model_id,
             trust_remote_code=True,
         )
         model_config._attn_implementation = self.config.attn_implementation
         model_config._attn_implementation_autoset = False
-        model = AutoModelForCausalLM.from_pretrained(
-            self.config.base_model_id,
-            config=model_config,
-            quantization_config=bnb_config,
-            device_map="auto",
-            trust_remote_code=True,
-            torch_dtype=torch.bfloat16,
-        )
+        # Hide flash_attn from importlib so Phi-3.5-vision's custom modeling
+        # code cannot re-enable FlashAttention2 regardless of config.json.
+        with self._hide_flash_attn():
+            model = AutoModelForCausalLM.from_pretrained(
+                self.config.base_model_id,
+                config=model_config,
+                quantization_config=bnb_config,
+                device_map="auto",
+                trust_remote_code=True,
+                torch_dtype=torch.bfloat16,
+            )
         model.config.use_cache = False
         return model, processor
 
