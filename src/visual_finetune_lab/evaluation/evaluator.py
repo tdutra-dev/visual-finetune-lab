@@ -126,7 +126,11 @@ class ModelEvaluator:
             processor = AutoProcessor.from_pretrained(
                 self.checkpoint_path, trust_remote_code=True
             )
-            base_model_id = processor.tokenizer.name_or_path
+            # Get the original base model ID from the PEFT adapter config,
+            # not from tokenizer.name_or_path which points to the local checkpoint.
+            from peft import PeftConfig
+            peft_config = PeftConfig.from_pretrained(self.checkpoint_path)
+            base_model_id = peft_config.base_model_name_or_path
             model_config = AutoConfig.from_pretrained(
                 base_model_id, trust_remote_code=True
             )
