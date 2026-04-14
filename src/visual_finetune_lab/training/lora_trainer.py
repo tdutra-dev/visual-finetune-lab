@@ -38,7 +38,7 @@ class TrainingConfig:
     lora_target_modules: list[str] = field(
         default_factory=lambda: ["q_proj", "k_proj", "v_proj", "o_proj"]
     )
-    attn_implementation: str = "sdpa"   # "sdpa" | "eager" | "flash_attention_2"
+    attn_implementation: str = "eager"  # "eager" | "sdpa" | "flash_attention_2"
     mlflow_experiment: str = "visual-finetune-lab"
 
 
