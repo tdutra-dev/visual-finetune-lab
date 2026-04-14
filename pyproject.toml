@@ -14,7 +14,7 @@ dependencies = [
 
     # LLM / GenAI
     "openai>=1.30",
-    "transformers>=4.41",
+    "transformers>=4.41,<5",
     "peft>=0.11",
     "bitsandbytes>=0.43",        # QLoRA quantization
     "accelerate>=0.30",

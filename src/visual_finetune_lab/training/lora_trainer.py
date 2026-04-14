@@ -9,6 +9,9 @@ from pathlib import Path
 import structlog
 import torch
 from datasets import Dataset, load_dataset
+
+# Capture the real find_spec before anything can replace it.
+_REAL_FIND_SPEC = importlib.util.find_spec
 from peft import LoraConfig, TaskType, get_peft_model
 from transformers import (
     AutoConfig,
@@ -97,18 +100,16 @@ class LoRATrainer:
     def _hide_flash_attn():
         """Temporarily make flash_attn invisible to importlib so custom model
         code (e.g. modeling_phi3_v.py) cannot enable FlashAttention2."""
-        _orig = importlib.util.find_spec
-
         def _patched(name, *args, **kwargs):
             if name == "flash_attn":
                 return None
-            return _orig(name, *args, **kwargs)
+            return _REAL_FIND_SPEC(name, *args, **kwargs)
 
         importlib.util.find_spec = _patched
         try:
             yield
         finally:
-            importlib.util.find_spec = _orig
+            importlib.util.find_spec = _REAL_FIND_SPEC
 
     def _load_model(self):
         bnb_config = BitsAndBytesConfig(

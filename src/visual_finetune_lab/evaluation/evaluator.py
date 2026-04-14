@@ -19,6 +19,43 @@ logger = structlog.get_logger()
 
 nltk.download("punkt_tab", quiet=True)
 
+# Capture the real find_spec before anything can replace it.
+_REAL_FIND_SPEC = importlib.util.find_spec
+
+# transformers >=5.x removed several DynamicCache methods that Phi-3.5-vision's
+# custom forward still calls. Restore all missing ones at import time.
+def _patch_dynamic_cache() -> None:
+    from transformers import DynamicCache
+    if not hasattr(DynamicCache, "from_legacy_cache"):
+        @classmethod  # type: ignore[misc]
+        def from_legacy_cache(cls, past_key_values=None):
+            cache = cls()
+            if past_key_values is not None:
+                for layer_idx, (keys, values) in enumerate(past_key_values):
+                    cache.update(keys, values, layer_idx)
+            return cache
+        DynamicCache.from_legacy_cache = from_legacy_cache
+
+    if not hasattr(DynamicCache, "get_usable_length"):
+        def get_usable_length(self, new_seq_length: int, layer_idx: int = 0) -> int:  # type: ignore[misc]
+            return self.get_seq_length(layer_idx)
+        DynamicCache.get_usable_length = get_usable_length  # type: ignore[attr-defined]
+
+    if not hasattr(DynamicCache, "get_max_length"):
+        def get_max_length(self) -> None:  # type: ignore[misc]
+            return None
+        DynamicCache.get_max_length = get_max_length  # type: ignore[attr-defined]
+
+    if not hasattr(DynamicCache, "to_legacy_cache"):
+        def to_legacy_cache(self):  # type: ignore[misc]
+            return tuple(
+                (self.key_cache[i], self.value_cache[i])
+                for i in range(len(self.key_cache))
+            )
+        DynamicCache.to_legacy_cache = to_legacy_cache  # type: ignore[attr-defined]
+
+_patch_dynamic_cache()
+
 
 @dataclass
 class EvalResult:
@@ -111,16 +148,15 @@ class ModelEvaluator:
     @staticmethod
     @contextmanager
     def _hide_flash_attn():
-        _orig = importlib.util.find_spec
         def _patched(name, *args, **kwargs):
             if name == "flash_attn":
                 return None
-            return _orig(name, *args, **kwargs)
+            return _REAL_FIND_SPEC(name, *args, **kwargs)
         importlib.util.find_spec = _patched
         try:
             yield
         finally:
-            importlib.util.find_spec = _orig
+            importlib.util.find_spec = _REAL_FIND_SPEC
 
     def _get_pipeline(self):
         if self._pipe is None:
