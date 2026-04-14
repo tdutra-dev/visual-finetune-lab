@@ -37,6 +37,7 @@ class TrainingConfig:
     lora_target_modules: list[str] = field(
         default_factory=lambda: ["q_proj", "k_proj", "v_proj", "o_proj"]
     )
+    attn_implementation: str = "sdpa"   # "sdpa" | "eager" | "flash_attention_2"
     mlflow_experiment: str = "visual-finetune-lab"
 
 
@@ -101,6 +102,7 @@ class LoRATrainer:
             device_map="auto",
             trust_remote_code=True,
             torch_dtype=torch.bfloat16,
+            attn_implementation=self.config.attn_implementation,
         )
         model.config.use_cache = False
         return model, processor
