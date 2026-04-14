@@ -201,5 +201,5 @@ class LoRATrainer:
             args=args,
             train_dataset=dataset["train"],
             eval_dataset=dataset["test"],
-            tokenizer=processor.tokenizer,
+            processing_class=processor.tokenizer,
         )
