@@ -44,8 +44,10 @@ def test_invalid_path_raises():
 
 def test_process_batch(tmp_path: Path, fake_image_path: Path):
     import shutil
-    shutil.copy(fake_image_path, tmp_path / "a.jpg")
-    shutil.copy(fake_image_path, tmp_path / "b.jpg")
+    batch_dir = tmp_path / "batch"
+    batch_dir.mkdir()
+    shutil.copy(fake_image_path, batch_dir / "a.jpg")
+    shutil.copy(fake_image_path, batch_dir / "b.jpg")
     processor = ImageProcessor()
-    results = processor.process_batch(tmp_path)
+    results = processor.process_batch(batch_dir)
     assert len(results) == 2
