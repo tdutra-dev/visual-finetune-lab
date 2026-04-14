@@ -12,7 +12,7 @@ from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
 from openai import OpenAI
 from peft import PeftModel
 from rouge_score import rouge_scorer
-from transformers import AutoModelForCausalLM, AutoProcessor, pipeline
+from transformers import AutoConfig, AutoModelForCausalLM, AutoProcessor, pipeline
 
 logger = structlog.get_logger()
 
@@ -127,9 +127,16 @@ class ModelEvaluator:
                 self.checkpoint_path, trust_remote_code=True
             )
             base_model_id = processor.tokenizer.name_or_path
+            model_config = AutoConfig.from_pretrained(
+                base_model_id, trust_remote_code=True
+            )
+            model_config._attn_implementation = "eager"
+            model_config._attn_implementation_autoset = False
             with self._hide_flash_attn():
                 base = AutoModelForCausalLM.from_pretrained(
-                    base_model_id, trust_remote_code=True
+                    base_model_id,
+                    config=model_config,
+                    trust_remote_code=True,
                 )
             model = PeftModel.from_pretrained(base, self.checkpoint_path)
             self._pipe = pipeline(
