@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import importlib.util
 import os
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -105,15 +107,30 @@ class ModelEvaluator:
 
     # ------------------------------------------------------------------ #
 
+    @staticmethod
+    @contextmanager
+    def _hide_flash_attn():
+        _orig = importlib.util.find_spec
+        def _patched(name, *args, **kwargs):
+            if name == "flash_attn":
+                return None
+            return _orig(name, *args, **kwargs)
+        importlib.util.find_spec = _patched
+        try:
+            yield
+        finally:
+            importlib.util.find_spec = _orig
+
     def _get_pipeline(self):
         if self._pipe is None:
             processor = AutoProcessor.from_pretrained(
                 self.checkpoint_path, trust_remote_code=True
             )
             base_model_id = processor.tokenizer.name_or_path
-            base = AutoModelForCausalLM.from_pretrained(
-                base_model_id, trust_remote_code=True
-            )
+            with self._hide_flash_attn():
+                base = AutoModelForCausalLM.from_pretrained(
+                    base_model_id, trust_remote_code=True
+                )
             model = PeftModel.from_pretrained(base, self.checkpoint_path)
             self._pipe = pipeline(
                 "text-generation",
