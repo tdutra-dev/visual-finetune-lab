@@ -143,6 +143,7 @@ class ModelEvaluator:
                     trust_remote_code=True,
                 )
             model = PeftModel.from_pretrained(base, self.checkpoint_path)
+            model.config.use_cache = False
             self._pipe = pipeline(
                 "text-generation",
                 model=model,
