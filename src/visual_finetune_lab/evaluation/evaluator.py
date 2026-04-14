@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import torch
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,7 +13,7 @@ from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
 from openai import OpenAI
 from peft import PeftModel
 from rouge_score import rouge_scorer
-from transformers import AutoConfig, AutoModelForCausalLM, AutoProcessor, pipeline
+from transformers import AutoConfig, AutoModelForCausalLM, AutoProcessor, BitsAndBytesConfig, pipeline
 
 logger = structlog.get_logger()
 
@@ -136,11 +137,20 @@ class ModelEvaluator:
             )
             model_config._attn_implementation = "eager"
             model_config._attn_implementation_autoset = False
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_use_double_quant=True,
+            )
             with self._hide_flash_attn():
                 base = AutoModelForCausalLM.from_pretrained(
                     base_model_id,
                     config=model_config,
+                    quantization_config=bnb_config,
+                    device_map="auto",
                     trust_remote_code=True,
+                    torch_dtype=torch.bfloat16,
                 )
             model = PeftModel.from_pretrained(base, self.checkpoint_path)
             model.config.use_cache = False
