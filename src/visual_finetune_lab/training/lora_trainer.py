@@ -9,6 +9,7 @@ import torch
 from datasets import Dataset, load_dataset
 from peft import LoraConfig, TaskType, get_peft_model
 from transformers import (
+    AutoConfig,
     AutoModelForCausalLM,
     AutoProcessor,
     BitsAndBytesConfig,
@@ -96,13 +97,22 @@ class LoRATrainer:
             self.config.base_model_id,
             trust_remote_code=True,
         )
+        # Explicitly patch the model config before init so that models with
+        # _attn_implementation="flash_attention_2" in their config.json
+        # (e.g. Phi-3.5-vision) don't require the flash_attn package.
+        model_config = AutoConfig.from_pretrained(
+            self.config.base_model_id,
+            trust_remote_code=True,
+        )
+        model_config._attn_implementation = self.config.attn_implementation
+        model_config._attn_implementation_autoset = False
         model = AutoModelForCausalLM.from_pretrained(
             self.config.base_model_id,
+            config=model_config,
             quantization_config=bnb_config,
             device_map="auto",
             trust_remote_code=True,
             torch_dtype=torch.bfloat16,
-            attn_implementation=self.config.attn_implementation,
         )
         model.config.use_cache = False
         return model, processor
