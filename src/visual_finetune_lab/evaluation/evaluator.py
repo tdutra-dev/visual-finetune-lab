@@ -54,6 +54,9 @@ def _patch_dynamic_cache() -> None:
             )
         DynamicCache.to_legacy_cache = to_legacy_cache  # type: ignore[attr-defined]
 
+    if not hasattr(DynamicCache, "seen_tokens"):
+        DynamicCache.seen_tokens = property(lambda self: self.get_seq_length(0))  # type: ignore[attr-defined]
+
 _patch_dynamic_cache()
 
 
