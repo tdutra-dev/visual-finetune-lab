@@ -85,10 +85,12 @@ class LoRATrainer:
 
         best_ckpt = Path(self.config.output_dir) / "best"
         peft_model.save_pretrained(best_ckpt)
-        # Phi3VProcessor lacks chat_template attr; set it to avoid a bug in
-        # transformers >= 4.46 save_pretrained that unconditionally accesses it.
+        # Phi3VProcessor lacks chat_template and audio_tokenizer attrs; patch
+        # them to avoid bugs in transformers save_pretrained.
         if not hasattr(processor, "chat_template"):
             processor.chat_template = None
+        if not hasattr(processor, "audio_tokenizer"):
+            processor.audio_tokenizer = None
         processor.save_pretrained(best_ckpt)
         logger.info("training_complete", checkpoint=str(best_ckpt))
         return best_ckpt

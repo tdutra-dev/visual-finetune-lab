@@ -34,35 +34,38 @@ Immagine documento
 
 ---
 
-## Stato attuale — Aprile 2026
+## Stato attuale — 15 Aprile 2026
 
 ### ✅ Completato
 
 | Fase | Componente | Note |
 |---|---|---|
 | 1 | Preprocessing (`ImageProcessor`) | Funzionante, testato su fattura PayPal reale |
-| 2 | Generazione dataset (`SyntheticDatasetGenerator`) | Funzionante, genera 10 Q&A pairs per immagine |
+| 2 | Generazione dataset (`SyntheticDatasetGenerator`) | **20 Q&A pairs generati** — `data/datasets/dataset.jsonl` (5.6 KB) |
 | — | Script di test rapido | `scripts/test_invoice.py` — legge da `.env` |
 | — | Test di integrazione | `tests/test_invoice_integration.py` |
 | — | Fix DynamicCache (transformers 5.x) | Patch in `evaluator.py` + notebook |
 | — | Fix RecursionError `_hide_flash_attn` | `_REAL_FIND_SPEC` salvato a livello modulo |
 | — | Pin `transformers<5` nel notebook | Evita incompatibilità con Phi-3.5 |
 | — | File `.env` configurato | `OPENAI_API_KEY` caricata da dotenv |
+| — | Notebook locale/Colab unificato | `pipeline.ipynb` gira in VS Code, JupyterLab e Colab |
+| — | MLflow DB inizializzato | `mlflow.db` creato (648 KB), run loggato |
 
-### 🔄 In corso
+### ❌ Hardware locale
 
-- Installazione driver NVIDIA (`nvidia-driver-550`) per abilitare GPU locale
-- GPU necessaria per eseguire le fasi 3–5
+- **GPU non disponibile**: il Dell Vostro 5568 è variante Intel-only (HD 620), nessuna GTX 940MX sull'hardware
+- Secure Boot disabilitato ma irrilevante — nessun dispositivo PCI NVIDIA presente
+- **Soluzione adottata**: usare Google Colab T4 per le fasi 3–5
 
 ### ⏳ Da completare
 
-| Fase | Componente | Dipendenza |
-|---|---|---|
-| 3 | Fine-tuning QLoRA (`LoRATrainer`) | GPU NVIDIA |
-| 4 | Evaluation (`ModelEvaluator`) | GPU + checkpoint trained |
-| 5 | MLflow tracking | Completamento training |
-| 6 | FastAPI serving (`api.py`) | Checkpoint trained |
-| 7 | Deploy Azure Container Apps | Serving funzionante |
+| Fase | Componente | Dove | Dipendenza |
+|---|---|---|---|
+| 3 | Fine-tuning QLoRA (`LoRATrainer`) | **Google Colab T4** | Dataset pronto ✅ |
+| 4 | Evaluation (`ModelEvaluator`) | **Google Colab T4** | Checkpoint trained |
+| 5 | MLflow tracking (metriche reali) | Colab / locale | Completamento training |
+| 6 | FastAPI serving (`api.py`) | Locale | Checkpoint trained |
+| 7 | Deploy Azure Container Apps | Azure | Serving funzionante |
 
 ---
 
@@ -92,10 +95,19 @@ source .venv/bin/activate
 python scripts/run_pipeline.py --images data/raw/ --epochs 3 --lora-rank 16
 ```
 
-### Colab T4 (quando GPU locale non disponibile)
-- Aprire `notebooks/pipeline.ipynb` su Google Colab
-- Usare **Runtime → Disconnect and delete runtime** per reset pulito
-- `transformers<5` già pinnato nella cella pip install
+### Colab T4 — Fine-tuning (fasi 3-5)
+
+Il dataset è pronto in `data/datasets/dataset.jsonl`. Per eseguire il fine-tuning:
+
+1. Vai su [colab.research.google.com](https://colab.research.google.com)
+2. **File → Upload notebook** → seleziona `notebooks/pipeline.ipynb`
+3. **Runtime → Change runtime type → T4 GPU**
+4. Nella cella Secrets di Colab (icona 🔑 a sinistra) aggiungi `OPENAI_API_KEY`
+5. Nella sezione **"3. Synthetic Dataset Generation"**, carica il `dataset.jsonl` già pronto:
+   - Usa il pannello file di Colab per uploadare `data/datasets/dataset.jsonl` in `/content/visual-finetune-lab/data/datasets/`
+   - La cella rileverà il file esistente e salterà la ri-generazione GPT-4o
+6. Esegui tutte le celle — il fine-tuning partirà automaticamente con GPU disponibile
+7. Scarica il checkpoint da Colab al termine: `checkpoints/best/` → copia in locale
 
 ---
 
@@ -111,4 +123,6 @@ python scripts/run_pipeline.py --images data/raw/ --epochs 3 --lora-rank 16
 
 - **`transformers>=5` è incompatibile** con il codice custom di Phi-3.5-vision (`DynamicCache.from_legacy_cache`, `get_usable_length`, `to_legacy_cache` rimossi). Pin a `<5` nel notebook e `pyproject.toml`.
 - **`_hide_flash_attn`** in `LoRATrainer` e `ModelEvaluator` usava `_orig = importlib.util.find_spec` localmente — causava `RecursionError` al secondo run. Fix: `_REAL_FIND_SPEC` catturato a livello modulo.
-- **GPU locale:** driver non ancora caricati (installazione in corso al 14/04/2026). Fino ad allora, usare Colab T4 per le fasi 3-5.
+- **GPU locale assente**: Dell Vostro 5568 è variante Intel-only. Nessuna GTX 940MX montata. Usare Colab T4.
+- **Notebook unificato**: `pipeline.ipynb` rileva automaticamente l'ambiente (locale/Colab) e salta le celle che richiedono GPU quando non disponibile.
+- **Dataset già generato**: `data/datasets/dataset.jsonl` — 20 Q&A pairs dalla fattura PayPal reale. Non rieseguire la cella GPT-4o senza motivo (costo API).
