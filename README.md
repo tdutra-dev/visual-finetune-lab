@@ -49,6 +49,8 @@ python scripts/run_pipeline.py --images data/raw/ --epochs 3 --lora-rank 16
 
 The script runs all 4 stages and logs everything to MLflow.
 
+> **Note:** stages 3–4 (fine-tuning & evaluation) require a GPU. No local GPU? Use [Google Colab T4](https://colab.research.google.com) — upload `notebooks/pipeline.ipynb` and run with a free T4 runtime.
+
 ---
 
 ## Project structure

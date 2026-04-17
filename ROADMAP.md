@@ -34,7 +34,7 @@ Immagine documento
 
 ---
 
-## Stato attuale — 15 Aprile 2026
+## Stato attuale — 17 Aprile 2026
 
 ### ✅ Completato
 
@@ -64,8 +64,8 @@ Immagine documento
 | 3 | Fine-tuning QLoRA (`LoRATrainer`) | **Google Colab T4** | Dataset pronto ✅ |
 | 4 | Evaluation (`ModelEvaluator`) | **Google Colab T4** | Checkpoint trained |
 | 5 | MLflow tracking (metriche reali) | Colab / locale | Completamento training |
-| 6 | FastAPI serving (`api.py`) | Locale | Checkpoint trained |
-| 7 | Deploy Azure Container Apps | Azure | Serving funzionante |
+| 6 | FastAPI serving (`api.py`) | ✅ Implementato | In attesa del checkpoint per girare |
+| 7 | Deploy Azure Container Apps | Azure | Checkpoint trained |
 
 ---
 
