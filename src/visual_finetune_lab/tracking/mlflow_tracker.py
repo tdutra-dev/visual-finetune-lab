@@ -10,12 +10,25 @@ import structlog
 logger = structlog.get_logger()
 
 
+def _setup_dagshub() -> str:
+    """Configure MLflow tracking via DagsHub if DAGSHUB_TOKEN is set."""
+    import dagshub
+    token = os.environ["DAGSHUB_TOKEN"]
+    dagshub.auth.add_app_token(token=token)
+    dagshub.init(repo_owner="tdutra-dev", repo_name="visual-finetune-lab", mlflow=True)
+    tracking_uri = mlflow.get_tracking_uri()
+    logger.info("dagshub_configured", tracking_uri=tracking_uri)
+    return tracking_uri
+
+
 class ExperimentTracker:
     """
     Thin wrapper around MLflow to track fine-tuning experiments.
 
-    Works with both local MLflow server and Databricks Community Edition
-    (set MLFLOW_TRACKING_URI=databricks and configure `databricks configure`).
+    Supports three backends (set MLFLOW_TRACKING_URI):
+      - "dagshub"         → DagsHub remote tracking (requires DAGSHUB_TOKEN)
+      - "sqlite:///..."   → local SQLite file
+      - "http://..."      → self-hosted MLflow server
 
     Example:
         tracker = ExperimentTracker("visual-finetune-lab")
@@ -26,8 +39,11 @@ class ExperimentTracker:
     """
 
     def __init__(self, experiment_name: str = "visual-finetune-lab"):
-        tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5000")
-        mlflow.set_tracking_uri(tracking_uri)
+        tracking_uri = os.environ.get("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
+        if tracking_uri == "dagshub":
+            tracking_uri = _setup_dagshub()
+        else:
+            mlflow.set_tracking_uri(tracking_uri)
         mlflow.set_experiment(experiment_name)
         self.experiment_name = experiment_name
         logger.info("mlflow_configured", tracking_uri=tracking_uri, experiment=experiment_name)
