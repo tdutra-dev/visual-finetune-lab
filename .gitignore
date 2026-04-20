@@ -15,3 +15,6 @@ mlflow.db
 *.bin
 *.safetensors
 .DS_Store
+datasets/
+notebooks/.ipynb_checkpoints/
+notebooks/Untitled.ipynb
